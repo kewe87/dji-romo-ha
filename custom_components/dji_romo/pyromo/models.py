@@ -140,11 +140,13 @@ class RomoState:
         return s == RomoStatus.CLEANING if s else None
 
     # Max consumable values (calculated from app display vs raw MQTT values)
+    # Max values in seconds. Verified against REST API percentages (2026-04-06):
+    # mop=120h, side_brush=180h, filter=180h, mid_brush=300h
     _CONSUMABLE_MAX = {
-        "mop_runtime": 443200,
-        "side_brush_runtime": 557600,
-        "dust_box_filter_life": 557600,
-        "mid_brush_runtime": 1112000,
+        "mop_runtime": 432000,       # 120h
+        "side_brush_runtime": 648000, # 180h
+        "dust_box_filter_life": 648000, # 180h
+        "mid_brush_runtime": 1080000, # 300h
     }
 
     def consumable_percent(self, attr: str) -> int | None:
