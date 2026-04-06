@@ -1,0 +1,84 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Mit DJI Romo verbinden",
+        "description": "Gib die Zugangsdaten ein, die aus der DJI Home App extrahiert wurden.",
+        "data": {
+          "user_token": "Benutzer-Token (x-member-token)",
+          "device_sn": "Geräte-Seriennummer"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Ungültiges Token oder Zugangsdaten.",
+      "cannot_connect": "DJI API nicht erreichbar.",
+      "unknown": "Ein unerwarteter Fehler ist aufgetreten."
+    },
+    "abort": {
+      "already_configured": "Dieses Gerät ist bereits konfiguriert."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "battery": { "name": "Akkustand" },
+      "fan_speed": {
+        "name": "Saugstärke",
+        "state": { "quiet": "Leise", "standard": "Standard", "max": "Max" }
+      },
+      "clean_mode": {
+        "name": "Reinigungsmodus",
+        "state": { "vacuum_and_mop": "Saugen & Wischen", "vacuum_then_mop": "Erst saugen, dann wischen", "vacuum": "Saugen", "mop": "Wischen" }
+      },
+      "progress": { "name": "Fortschritt" },
+      "clean_duration": { "name": "Reinigungsdauer" },
+      "remaining_time": { "name": "Restzeit" },
+      "sub_job": {
+        "name": "Aktuelle Aufgabe",
+        "state": {
+          "idle": "Bereit", "exit_base": "Verlässt Basis", "cover_tree": "Reinigt",
+          "dust_collect": "Staubsammlung", "go_home": "Fährt zurück",
+          "assist_relocalization": "Lokalisiert sich", "drying": "Trocknet",
+          "base_inject_water": "Befüllt Wasser"
+        }
+      },
+      "dust_bag": { "name": "Staubbeutel" },
+      "filter": { "name": "Filter" },
+      "mid_brush": { "name": "Hauptbürste" },
+      "mop": { "name": "Wischpad" },
+      "side_brush": { "name": "Seitenbürste" },
+      "self_clean_count": { "name": "Selbstreinigungen" },
+      "volume": { "name": "Lautstärke" },
+      "language": { "name": "Sprache" },
+      "error": { "name": "Fehlermeldung" },
+      "mqtt_status": { "name": "MQTT-Status" },
+      "last_update": { "name": "Letzte Aktualisierung" },
+      "hms_alerts": { "name": "Warnmeldungen" },
+      "total_cleans": { "name": "Reinigungen gesamt" },
+      "total_area": { "name": "Gereinigte Fläche gesamt" },
+      "total_duration": { "name": "Reinigungszeit gesamt" }
+    },
+    "binary_sensor": {
+      "docked": { "name": "Angedockt" },
+      "charging": { "name": "Wird geladen" },
+      "cleaning": { "name": "Reinigt" },
+      "battery_care_active": { "name": "Akkuschutz aktiv" },
+      "battery_care": { "name": "Akkuschutz" },
+      "carpet_mode": { "name": "Teppichmodus" },
+      "ai_recognition": { "name": "KI-Hinderniserkennung" },
+      "hot_water_mop": { "name": "Heißwasser-Wischen" },
+      "do_not_disturb": { "name": "Nicht stören" },
+      "child_lock": { "name": "Kindersicherung" },
+      "particle_clean": { "name": "Partikelerkennung" },
+      "pet_care": { "name": "Tierpflege" },
+      "stair_mode": { "name": "Treppenvermeidung" }
+    },
+    "button": {
+      "go_home": { "name": "Zurück zur Basis" },
+      "wash_mop": { "name": "Wischpads reinigen" },
+      "dust_collect": { "name": "Absaugen" },
+      "drying": { "name": "Wischpads trocknen" },
+      "drain": { "name": "Wasser ablassen" }
+    }
+  }
+}

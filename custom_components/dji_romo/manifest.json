@@ -1,0 +1,12 @@
+{
+  "domain": "dji_romo",
+  "name": "DJI Romo",
+  "codeowners": ["@kewe87"],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/kewe87/dji-romo-ha",
+  "integration_type": "device",
+  "iot_class": "cloud_push",
+  "requirements": ["paho-mqtt>=2.0"],
+  "version": "0.1.0-beta"
+}

@@ -1,0 +1,84 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to DJI Romo",
+        "description": "Enter the credentials extracted from the DJI Home app.",
+        "data": {
+          "user_token": "User Token (x-member-token)",
+          "device_sn": "Device Serial Number"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Invalid token or credentials.",
+      "cannot_connect": "Unable to reach the DJI API.",
+      "unknown": "An unexpected error occurred."
+    },
+    "abort": {
+      "already_configured": "This device is already configured."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "battery": { "name": "Battery" },
+      "fan_speed": {
+        "name": "Suction Power",
+        "state": { "quiet": "Quiet", "standard": "Standard", "max": "Max" }
+      },
+      "clean_mode": {
+        "name": "Cleaning Mode",
+        "state": { "vacuum_and_mop": "Vacuum & Mop", "vacuum_then_mop": "Vacuum then Mop", "vacuum": "Vacuum", "mop": "Mop" }
+      },
+      "progress": { "name": "Progress" },
+      "clean_duration": { "name": "Clean Duration" },
+      "remaining_time": { "name": "Remaining Time" },
+      "sub_job": {
+        "name": "Current Task",
+        "state": {
+          "idle": "Idle", "exit_base": "Leaving Base", "cover_tree": "Cleaning",
+          "dust_collect": "Dust Collection", "go_home": "Returning Home",
+          "assist_relocalization": "Relocating", "drying": "Drying",
+          "base_inject_water": "Filling Water"
+        }
+      },
+      "dust_bag": { "name": "Dust Bag" },
+      "filter": { "name": "Filter" },
+      "mid_brush": { "name": "Main Brush" },
+      "mop": { "name": "Mop Pad" },
+      "side_brush": { "name": "Side Brush" },
+      "self_clean_count": { "name": "Self-Clean Count" },
+      "volume": { "name": "Volume" },
+      "language": { "name": "Language" },
+      "error": { "name": "Error" },
+      "mqtt_status": { "name": "MQTT Status" },
+      "last_update": { "name": "Last Update" },
+      "hms_alerts": { "name": "Alerts" },
+      "total_cleans": { "name": "Total Cleans" },
+      "total_area": { "name": "Total Area Cleaned" },
+      "total_duration": { "name": "Total Clean Time" }
+    },
+    "binary_sensor": {
+      "docked": { "name": "Docked" },
+      "charging": { "name": "Charging" },
+      "cleaning": { "name": "Cleaning" },
+      "battery_care_active": { "name": "Battery Care Active" },
+      "battery_care": { "name": "Battery Care" },
+      "carpet_mode": { "name": "Carpet Mode" },
+      "ai_recognition": { "name": "AI Obstacle Detection" },
+      "hot_water_mop": { "name": "Hot Water Mopping" },
+      "do_not_disturb": { "name": "Do Not Disturb" },
+      "child_lock": { "name": "Child Lock" },
+      "particle_clean": { "name": "Particle Detection" },
+      "pet_care": { "name": "Pet Care" },
+      "stair_mode": { "name": "Stair Avoidance" }
+    },
+    "button": {
+      "go_home": { "name": "Return to Base" },
+      "wash_mop": { "name": "Wash Mop Pads" },
+      "dust_collect": { "name": "Dust Collection" },
+      "drying": { "name": "Dry Mop Pads" },
+      "drain": { "name": "Drain Water" }
+    }
+  }
+}

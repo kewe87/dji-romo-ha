@@ -1,0 +1,7 @@
+.env
+__pycache__/
+*.pyc
+mqtt_capture.json
+.claude/
+map_preview.png
+ISSUES.md
