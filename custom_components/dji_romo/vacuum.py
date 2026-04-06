@@ -9,7 +9,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .pyromo.models import RomoStatus
+from .pyromo.models import FAN_SPEED_NAMES, RomoStatus
 from . import RomoStateCoordinator
 from .const import CONF_DEVICE_SN, DOMAIN
 from .entity import RomoEntity
@@ -38,12 +38,15 @@ class RomoVacuumEntity(RomoEntity, StateVacuumEntity):
 
     _attr_name = None
     _attr_supported_features = (
-        VacuumEntityFeature.PAUSE
+        VacuumEntityFeature.START
+        | VacuumEntityFeature.PAUSE
         | VacuumEntityFeature.STOP
         | VacuumEntityFeature.RETURN_HOME
         | VacuumEntityFeature.BATTERY
         | VacuumEntityFeature.STATE
+        | VacuumEntityFeature.FAN_SPEED
     )
+    _attr_fan_speed_list = ["quiet", "standard", "max"]
 
     def __init__(self, coordinator: RomoStateCoordinator, device_sn: str) -> None:
         super().__init__(coordinator, device_sn)
@@ -58,17 +61,27 @@ class RomoVacuumEntity(RomoEntity, StateVacuumEntity):
     def battery_level(self) -> int | None:
         return self.coordinator.data.battery
 
+    @property
+    def fan_speed(self) -> str | None:
+        return self.coordinator.data.fan_speed_name
+
+    async def async_start(self, **kwargs: Any) -> None:
+        """Start cleaning all rooms with current fan speed setting."""
+        speed_map = {v: k for k, v in FAN_SPEED_NAMES.items()}
+        fan = speed_map.get(self.fan_speed, 2)
+        await self.coordinator.client.async_start_clean(fan_speed=fan)
+
+    async def async_set_fan_speed(self, fan_speed: str, **kwargs: Any) -> None:
+        """Set fan speed for next cleaning run."""
+        speed_map = {v: k for k, v in FAN_SPEED_NAMES.items()}
+        fan = speed_map.get(fan_speed, 2)
+        await self.coordinator.client.async_start_clean(fan_speed=fan)
+
     async def async_pause(self, **kwargs: Any) -> None:
-        """Verified: POST .../jobs/cleans/{uuid}/pause"""
         await self.coordinator.client.async_pause()
 
     async def async_stop(self, **kwargs: Any) -> None:
-        """Verified: POST .../jobs/cleans/{uuid}/stop"""
         await self.coordinator.client.async_stop()
 
     async def async_return_to_base(self, **kwargs: Any) -> None:
-        """Verified: POST .../jobs/goHomes/start"""
         await self.coordinator.client.async_return_to_base()
-
-    # TODO: async_start blocked on finding the request body for jobs/cleans/start
-    # See: https://github.com/kewe87/dji-romo-ha/issues/1

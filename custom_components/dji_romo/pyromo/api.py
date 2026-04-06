@@ -2,6 +2,7 @@
 
 Verified endpoints:
   GET  /app/api/v1/users/auth/token?reason=mqtt       -> MQTT credentials
+  POST /cr/app/api/v1/devices/{sn}/jobs/cleans/start   -> start cleaning
   POST /cr/app/api/v1/devices/{sn}/jobs/goHomes/start  -> return to base
   POST /cr/app/api/v1/devices/{sn}/jobs/brushCleans/startWithMode -> wash mop pads
   POST /cr/app/api/v1/devices/{sn}/jobs/cleans/{uuid}/pause   -> pause cleaning
@@ -9,14 +10,14 @@ Verified endpoints:
   POST /cr/app/api/v1/devices/{sn}/jobs/cleans/{uuid}/stop    -> stop cleaning
   GET  /cr/app/api/v1/devices/{sn}/jobs/cleans/job/list       -> active job list
   GET  /cr/app/api/v1/devices/{sn}/jobs/cleans/statistic      -> cleaning stats
-
-Not yet working:
-  POST /cr/app/api/v1/devices/{sn}/jobs/cleans/start  -> start cleaning (body format unknown)
+  GET  /cr/app/api/v1/devices/{sn}/shortcuts/list              -> cleaning presets
+  GET  /cr/app/api/v1/devices/{sn}/maps/list                   -> map data
 """
 
 from __future__ import annotations
 
 import logging
+import uuid
 from typing import Any
 
 import aiohttp
@@ -149,8 +150,127 @@ class RomoClient:
         return data.get("data", {})
 
     # ------------------------------------------------------------------
+    # Map & Shortcuts
+    # ------------------------------------------------------------------
+
+    async def async_get_shortcuts(self) -> list[dict[str, Any]]:
+        """Fetch cleaning presets (shortcuts). Each contains plan_area_configs and room_map."""
+        data = await self._get_device("shortcuts/list?plan_data_version=0&slot_id=0")
+        return data.get("data", {}).get("plan_list", [])
+
+    async def async_get_maps(self) -> list[dict[str, Any]]:
+        """Fetch map metadata (file_url, encryption headers, room polygons)."""
+        data = await self._get_device("maps/list?map_data_version=0")
+        return data.get("data", {}).get("map_list", [])
+
+    async def async_get_map_data(self) -> dict[str, Any] | None:
+        """Download and return the full map JSON from S3.
+
+        Returns dict with keys: grid_map, seg_map, carpet_layer,
+        restricted_layer, virtual_wall, obstacle_layer, pet_layer.
+        seg_map.poly_info contains room polygons with vertices in meters.
+        """
+        maps = await self.async_get_maps()
+        if not maps:
+            return None
+        current = next((m for m in maps if m.get("is_current")), maps[0])
+        file_url = current.get("file_url")
+        file_header = current.get("file_header", {})
+        if not file_url:
+            return None
+        session = await self._get_session()
+        try:
+            async with session.get(file_url, headers=file_header) as resp:
+                resp.raise_for_status()
+                import json
+                return json.loads(await resp.read())
+        except aiohttp.ClientError as exc:
+            _LOGGER.warning("Map download failed: %s", exc)
+            return None
+
+    # ------------------------------------------------------------------
     # Commands
     # ------------------------------------------------------------------
+
+    async def async_start_clean(
+        self,
+        fan_speed: int = 2,
+        clean_mode: int = 0,
+        water_level: int = 2,
+        clean_num: int = 1,
+    ) -> None:
+        """Start a cleaning job.
+
+        Fetches current shortcuts to get room configs and map data,
+        then sends the start command with the specified settings.
+
+        Args:
+            fan_speed: 1=Quiet, 2=Standard, 3=Max
+            clean_mode: 0=Vacuum+Mop, 1=Vacuum then Mop, 2=Vacuum, 3=Mop
+            water_level: 1-3
+            clean_num: Number of passes (1-3)
+        """
+        shortcuts = await self.async_get_shortcuts()
+        if not shortcuts:
+            _LOGGER.error("No cleaning shortcuts found - cannot determine room layout")
+            return
+
+        # Use the first shortcut as template (it contains all rooms and map info)
+        plan = shortcuts[0]
+        plan_configs = plan.get("plan_area_configs", [])
+        room_map = plan.get("room_map", {})
+
+        if not plan_configs:
+            _LOGGER.error("Shortcut has no plan_area_configs")
+            return
+
+        # Apply user-selected settings to each room config
+        area_configs = []
+        for cfg in plan_configs:
+            area_configs.append({
+                "config_uuid": str(uuid.uuid4()),
+                "clean_mode": clean_mode,
+                "fan_speed": fan_speed,
+                "water_level": water_level,
+                "clean_num": clean_num,
+                "storm_mode": 0,
+                "secondary_clean_num": 1,
+                "clean_speed": 2,
+                "order_id": cfg.get("order_id", 1),
+                "poly_type": cfg.get("poly_type", 2),
+                "poly_index": cfg.get("poly_index", 0),
+                "poly_label": cfg.get("poly_label", 0),
+                "user_label": cfg.get("user_label", 0),
+                "poly_name_index": cfg.get("poly_name_index", 0),
+                "skip_area": 0,
+                "floor_cleaner_type": 0,
+                "repeat_mop": False,
+            })
+
+        body = {
+            "sn": self._device_sn,
+            "job_timeout": 3600,
+            "method": "room_clean",
+            "data": {
+                "action": "start",
+                "name": "",
+                "plan_name_key": "",
+                "plan_uuid": str(uuid.uuid4()),
+                "plan_type": 2,
+                "clean_area_type": 2,
+                "is_valid": True,
+                "plan_area_configs": area_configs,
+                "room_map": {
+                    "map_index": room_map.get("map_index", 0),
+                    "map_version": room_map.get("map_version", 0),
+                    "file_id": room_map.get("file_id", ""),
+                    "slot_id": room_map.get("slot_id", 0),
+                },
+                "area_config_type": 0,
+            },
+        }
+
+        await self._post_device("jobs/cleans/start", body)
 
     async def async_return_to_base(self) -> None:
         """Verified: POST .../jobs/goHomes/start"""
