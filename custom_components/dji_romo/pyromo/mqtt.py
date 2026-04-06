@@ -152,21 +152,32 @@ class RomoMqttClient:
         host = data.get("host", {})
         if not host:
             return
-        self._state.device_volume = host.get("device_volume", self._state.device_volume)
-        self._state.device_language = host.get("device_language", self._state.device_language)
-        self._state.battery_care_setting = bool(host.get("battery_care", 0))
-        self._state.carpet_mode = bool(host.get("meet_carpet_mode", 0))
-        self._state.hot_water_mop = bool(host.get("wash_mop_with_hot_water", 0))
-        self._state.enhance_particle_clean = bool(host.get("enhance_particle_clean", 0))
-        self._state.child_lock = bool(host.get("is_child_lock_open", 0))
-        self._state.pet_care = bool(host.get("is_pet_care", 0))
-        self._state.stair_mode = bool(host.get("is_no_stair_mode", 0))
-        ai = host.get("ai_recognition", {})
-        if ai:
-            self._state.ai_recognition = bool(ai.get("is_open", 0))
-        nd = host.get("no_disturb", {})
-        if nd:
-            self._state.no_disturb = bool(nd.get("is_open", 0))
+        # Only update fields that are actually present in the MQTT payload.
+        # device_state messages contain only changed fields, not all settings.
+        if "device_volume" in host:
+            self._state.device_volume = host["device_volume"]
+        if "device_language" in host:
+            self._state.device_language = host["device_language"]
+        if "battery_care" in host:
+            self._state.battery_care_setting = bool(host["battery_care"])
+        if "meet_carpet_mode" in host:
+            self._state.carpet_mode = bool(host["meet_carpet_mode"])
+        if "wash_mop_with_hot_water" in host:
+            self._state.hot_water_mop = bool(host["wash_mop_with_hot_water"])
+        if "enhance_particle_clean" in host:
+            self._state.enhance_particle_clean = bool(host["enhance_particle_clean"])
+        if "is_child_lock_open" in host:
+            self._state.child_lock = bool(host["is_child_lock_open"])
+        if "is_pet_care" in host:
+            self._state.pet_care = bool(host["is_pet_care"])
+        if "is_no_stair_mode" in host:
+            self._state.stair_mode = bool(host["is_no_stair_mode"])
+        ai = host.get("ai_recognition")
+        if isinstance(ai, dict) and "is_open" in ai:
+            self._state.ai_recognition = bool(ai["is_open"])
+        nd = host.get("no_disturb")
+        if isinstance(nd, dict) and "is_open" in nd:
+            self._state.no_disturb = bool(nd["is_open"])
         cons = host.get("consumables", {})
         if cons:
             self._state.dust_bag_life = cons.get("dust_bag_life", self._state.dust_bag_life)

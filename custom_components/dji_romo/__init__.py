@@ -219,6 +219,13 @@ class RomoStateCoordinator:
         except Exception:
             _LOGGER.debug("Could not fetch cleaning stats")
 
+        _LOGGER.info(
+            "Initial state loaded: battery=%s, carpet=%s, volume=%s, language=%s, charger=%s",
+            self._state.battery, self._state.carpet_mode,
+            self._state.device_volume, self._state.device_language,
+            self._state.charger_connected,
+        )
+
         # Notify listeners
         for listener in self._listeners:
             listener()
