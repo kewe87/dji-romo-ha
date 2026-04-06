@@ -297,6 +297,105 @@ class RomoClient:
 
         await self._post_device("jobs/cleans/start", body)
 
+    async def async_start_clean_rooms(
+        self,
+        rooms_input: list[dict[str, Any]],
+    ) -> None:
+        """Start cleaning specific rooms with per-room settings.
+
+        rooms_input: list of dicts with "name" (room name to match) and optional
+        clean_mode, fan_speed, water_level, clean_num overrides.
+        Room names are matched against DJI room labels from the map.
+        """
+        ROOM_LABELS = {
+            1: "Bedroom", 2: "Guest room", 3: "Kitchen", 4: "Dining",
+            5: "Study", 6: "Living room", 7: "Hallway", 8: "Storage",
+            9: "Balcony", 10: "Laundry", 11: "Closet", 12: "Office",
+            13: "Entrance", 14: "Bathroom", 15: "Kids room",
+        }
+
+        # Get map data for room polygons
+        map_data = await self.async_get_map_data()
+        if not map_data:
+            _LOGGER.error("Cannot start room clean: no map data")
+            return
+
+        polys = map_data.get("seg_map", {}).get("poly_info", [])
+        map_info = map_data.get("grid_map", {}).get("map_info", {})
+
+        # Get current map metadata
+        maps = await self.async_get_maps()
+        current_map = next((m for m in maps if m.get("is_current")), maps[0] if maps else {})
+
+        # Build name -> poly mapping (case-insensitive)
+        name_to_poly = {}
+        for poly in polys:
+            label = ROOM_LABELS.get(poly.get("user_label", 0), "")
+            custom = poly.get("custom_name", "")
+            for n in [custom, label]:
+                if n:
+                    name_to_poly[n.lower()] = poly
+
+        # Match requested rooms
+        area_configs = []
+        order = 1
+        for room_req in rooms_input:
+            name = room_req.get("name", "").lower()
+            poly = name_to_poly.get(name)
+            if not poly:
+                _LOGGER.warning("Room '%s' not found on map, skipping", room_req.get("name"))
+                continue
+
+            area_configs.append({
+                "config_uuid": str(uuid.uuid4()),
+                "clean_mode": room_req.get("clean_mode", 0),
+                "fan_speed": room_req.get("fan_speed", 2),
+                "water_level": room_req.get("water_level", 2),
+                "clean_num": room_req.get("clean_num", 1),
+                "storm_mode": 0,
+                "secondary_clean_num": 1,
+                "clean_speed": room_req.get("clean_speed", 2),
+                "order_id": order,
+                "poly_type": poly.get("poly_type", 2),
+                "poly_index": poly.get("poly_index", 0),
+                "poly_label": poly.get("poly_label", 0),
+                "user_label": poly.get("user_label", 0),
+                "poly_name_index": poly.get("poly_name_index", 0),
+                "skip_area": 0,
+                "floor_cleaner_type": 0,
+                "repeat_mop": room_req.get("repeat_mop", False),
+            })
+            order += 1
+
+        if not area_configs:
+            _LOGGER.error("No valid rooms matched for cleaning")
+            return
+
+        body = {
+            "sn": self._device_sn,
+            "job_timeout": 3600,
+            "method": "room_clean",
+            "data": {
+                "action": "start",
+                "name": "",
+                "plan_name_key": "",
+                "plan_uuid": str(uuid.uuid4()),
+                "plan_type": 2,
+                "clean_area_type": 2,
+                "is_valid": True,
+                "plan_area_configs": area_configs,
+                "room_map": {
+                    "map_index": current_map.get("map_index", 0),
+                    "map_version": current_map.get("map_version", 0),
+                    "file_id": current_map.get("file_id", ""),
+                    "slot_id": current_map.get("slot_id", 0),
+                },
+                "area_config_type": 0,
+            },
+        }
+
+        await self._post_device("jobs/cleans/start", body)
+
     async def async_start_clean_from_shortcut(
         self,
         shortcut: dict[str, Any],

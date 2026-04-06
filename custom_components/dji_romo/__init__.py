@@ -9,9 +9,11 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 
+import voluptuous as vol
+
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.event import async_call_later
 
@@ -42,7 +44,40 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    _register_services(hass)
     return True
+
+
+def _register_services(hass: HomeAssistant) -> None:
+    """Register custom services (only once)."""
+    if hass.services.has_service(DOMAIN, "clean_rooms"):
+        return
+
+    async def handle_clean_rooms(call: ServiceCall) -> None:
+        """Handle the clean_rooms service call."""
+        entity_id = call.data["entity_id"]
+        rooms_input = call.data["rooms"]
+
+        # Find the coordinator for this entity
+        coordinator = None
+        for coord in hass.data.get(DOMAIN, {}).values():
+            if isinstance(coord, RomoStateCoordinator):
+                coordinator = coord
+                break
+        if not coordinator:
+            return
+
+        await coordinator.client.async_start_clean_rooms(rooms_input)
+
+    hass.services.async_register(
+        DOMAIN,
+        "clean_rooms",
+        handle_clean_rooms,
+        schema=vol.Schema({
+            vol.Required("entity_id"): str,
+            vol.Required("rooms"): list,
+        }),
+    )
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
