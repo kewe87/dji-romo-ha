@@ -158,6 +158,11 @@ class RomoClient:
         data = await self._get_device("things/properties")
         return data.get("data", {})
 
+    async def async_get_consumables(self) -> list[dict[str, Any]]:
+        """Fetch robot consumables with server-calculated percentages."""
+        data = await self._get_device("consumables")
+        return data.get("data", {}).get("list", [])
+
     async def async_get_dock_consumables(self) -> dict[str, Any]:
         """Fetch dock consumables (water tanks, dust bag, cleaning solution)."""
         data = await self._get_device("consumables/dock")

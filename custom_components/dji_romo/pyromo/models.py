@@ -9,7 +9,7 @@ Topics:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 
 
@@ -107,6 +107,9 @@ class RomoState:
     # --- hms ---
     hms_alerts: list | None = None
 
+    # --- REST consumable percentages (server-calculated, more accurate) ---
+    consumable_rest_pct: dict[str, int] = field(default_factory=dict)
+
     # --- cleaning statistics (from REST) ---
     total_cleans: int | None = None
     total_area: int | None = None  # m² (total_acreage)
@@ -145,7 +148,13 @@ class RomoState:
     }
 
     def consumable_percent(self, attr: str) -> int | None:
-        """Remaining percentage for a consumable."""
+        """Remaining percentage for a consumable.
+
+        Prefers server-calculated percentages from REST API.
+        Falls back to local calculation from MQTT runtime values.
+        """
+        if attr in self.consumable_rest_pct:
+            return self.consumable_rest_pct[attr]
         val = getattr(self, attr, None)
         max_val = self._CONSUMABLE_MAX.get(attr)
         if val is None or max_val is None:

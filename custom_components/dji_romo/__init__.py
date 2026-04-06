@@ -84,7 +84,7 @@ class RomoStateCoordinator:
         return self._connected
 
     async def async_connect(self) -> None:
-        """Start the MQTT connection and fetch initial stats."""
+        """Start the MQTT connection and fetch initial state from REST."""
         self._mqtt = RomoMqttClient(
             device_sn=self.client.device_sn,
             get_mqtt_creds=self.client.async_get_mqtt_credentials,
@@ -92,10 +92,40 @@ class RomoStateCoordinator:
         )
         await self._mqtt.async_connect()
         self._connected = True
-        await self._fetch_stats()
+        await self._fetch_initial_state()
 
-    async def _fetch_stats(self) -> None:
-        """Fetch cleaning statistics from REST API."""
+    async def _fetch_initial_state(self) -> None:
+        """Fetch all available state from REST API to avoid 'unknown' entities."""
+        # Properties (battery, charger, mission status, settings)
+        try:
+            props = await self.client.async_get_properties()
+            self._state.battery = props.get("battery")
+            if props.get("charger_connected") is not None:
+                self._state.charger_connected = bool(props["charger_connected"])
+            if props.get("mission_status") is None:
+                ti = props.get("task_info", {})
+                self._state.mission_status = ti.get("mission_status")
+            else:
+                self._state.mission_status = props.get("mission_status")
+            if props.get("battery_care_active") is not None:
+                self._state.battery_care_active = bool(props["battery_care_active"])
+            self._state.hatch_status = props.get("hatch_status")
+            self._state.dust_bag_uv_enable = props.get("dust_bag_uv_enable")
+        except Exception:
+            _LOGGER.debug("Could not fetch properties")
+
+        # Consumables (with pre-calculated percentages from server)
+        try:
+            data = await self.client.async_get_consumables()
+            for item in data:
+                code = item.get("code", "")
+                pct = item.get("percentage")
+                if pct is not None:
+                    self._state.consumable_rest_pct[code] = pct
+        except Exception:
+            _LOGGER.debug("Could not fetch consumables")
+
+        # Cleaning statistics
         try:
             stats = await self.client.async_get_cleaning_stats()
             self._state.total_cleans = stats.get("total_count")
@@ -103,6 +133,10 @@ class RomoStateCoordinator:
             self._state.total_duration = stats.get("total_duration")
         except Exception:
             _LOGGER.debug("Could not fetch cleaning stats")
+
+        # Notify listeners
+        for listener in self._listeners:
+            listener()
 
     async def async_disconnect(self) -> None:
         """Stop the MQTT connection."""
