@@ -74,7 +74,6 @@ async def async_setup_entry(
         # Device info (from REST properties, diagnostic)
         RomoDeviceInfoSensor(coordinator, sn, "firmware", "Firmware", "mdi:chip", "firmware_version"),
         RomoDeviceInfoSensor(coordinator, sn, "dock_sn", "Dock serial", "mdi:dock-bottom", "dock_sn"),
-        RomoDeviceInfoSensor(coordinator, sn, "device_ip", "Device IP", "mdi:ip-network", "device_ip"),
     ])
 
 
