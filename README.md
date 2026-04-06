@@ -4,17 +4,46 @@
 
 Custom Home Assistant integration for the **DJI Romo** robot vacuum using the unofficial, reverse-engineered DJI cloud API.
 
-> **Version:** 0.1.0-beta
+> **Version:** 0.2.0-beta
 
 ---
 
 ## Features
 
-### Real-time sensors via MQTT (all verified)
+### Vacuum Control
+
+| Action | Type | Description |
+|---|---|---|
+| Start cleaning | Vacuum entity | Start with selected program or all rooms |
+| Pause | Vacuum entity | Pause active cleaning job |
+| Stop | Vacuum entity | Stop/cancel active cleaning job |
+| Return to base | Vacuum entity + Button | Send robot home |
+| Fan speed | Vacuum entity | Quiet / Standard / Max |
+| Wash mop pads | Button | Start mop pad cleaning |
+| Dust collection | Button | Start dust bag collection |
+| Drying | Button | Start mop pad drying |
+
+### Cleaning Programs
 
 | Entity | Type | Description |
 |---|---|---|
-| Vacuum | `vacuum` | Status, battery, pause, stop, return to base |
+| Cleaning program | `select` | Choose from app-configured cleaning presets |
+
+Programs are fetched from the DJI cloud (same as configured in the DJI Home app). Each program contains per-room settings like cleaning mode, fan speed, water level, and room order. Selecting a program and pressing Start uses those exact settings.
+
+### Map
+
+| Entity | Type | Description |
+|---|---|---|
+| Map | `camera` | Floor plan with room polygons rendered as PNG |
+
+The map is downloaded from the DJI cloud as JSON with room polygon coordinates. It shows rooms, carpet areas, restricted zones, virtual walls, and the dock position. Refreshes every 5 minutes.
+
+### Real-time Sensors via MQTT
+
+| Entity | Type | Description |
+|---|---|---|
+| Vacuum | `vacuum` | Status, battery, start, pause, stop, return, fan speed |
 | Battery | `sensor` | Battery level (%) |
 | Suction power | `sensor` | Quiet / Standard / Max |
 | Cleaning mode | `sensor` | Vacuum / Mop / Vacuum & Mop / Vacuum then Mop |
@@ -42,31 +71,13 @@ Custom Home Assistant integration for the **DJI Romo** robot vacuum using the un
 | Pet care | `binary_sensor` | Setting |
 | Stair avoidance | `binary_sensor` | Setting |
 
-### Commands (all verified)
-
-| Action | Type | Description |
-|---|---|---|
-| Pause | Vacuum entity | Pause active cleaning job |
-| Stop | Vacuum entity | Stop/cancel active cleaning job |
-| Return to base | Vacuum entity + Button | Send robot home |
-| Wash mop pads | Button | Start mop pad cleaning |
-| Dust collection | Button | Start dust bag collection |
-| Drying | Button | Start mop pad drying |
-
-### Not yet implemented
-
-| Feature | Status |
-|---|---|
-| Start cleaning | REST endpoint exists but request body format unknown |
-| Map display | Map data received via MQTT, rendering in progress |
-| Change settings | Settings are read-only, write endpoints not found |
-
 ### Architecture
 
 - **MQTT push** for device state (~1 update per second, no polling)
-- **REST API** for authentication and commands
+- **REST API** for authentication, commands, map data, and cleaning programs
 - MQTT token auto-refreshes every ~4 hours
-- All data verified with live MQTT capture from real device
+- Map data stored on AWS S3 with AES256 encryption (decrypted transparently)
+- All data verified with live device capture
 
 ---
 
@@ -81,20 +92,7 @@ You need two values from the DJI Home app:
 
 ### Extracting credentials
 
-#### Option A: Automated script (recommended)
-
-Requirements: Python 3.10+, rooted Android device, ADB
-
-```bash
-python scripts/extract_credentials.py
-```
-
-The script guides you step by step:
-1. Enter your device's IP address and ADB port
-2. It connects, checks root, finds the DJI Home app
-3. Extracts token and serial number automatically
-
-#### Option B: Manual extraction (rooted Android)
+#### Option A: Manual extraction (rooted Android)
 
 1. Enable **Wireless Debugging** in Developer Options
 2. Connect via ADB:
@@ -113,7 +111,7 @@ The script guides you step by step:
    rm /data/local/tmp/heap.bin
    ```
 
-#### Option C: Emulator (no root needed, macOS only)
+#### Option B: Emulator (no root needed, macOS only)
 
 Use the [dji-home-credential-extractor](https://github.com/xn0tsa/dji-home-credential-extractor).
 
@@ -136,15 +134,22 @@ Use the [dji-home-credential-extractor](https://github.com/xn0tsa/dji-home-crede
 
 ## Setup
 
-1. **Settings → Devices & Services → Add Integration**
+1. **Settings > Devices & Services > Add Integration**
 2. Search for **DJI Romo**
 3. Enter **User Token** and **Device Serial Number**
 4. Done — entities appear immediately with live data
 
 ---
 
+## API Documentation
+
+See [API.md](API.md) for the full REST API reference including all discovered endpoints, request/response formats, and map data structure.
+
+---
+
 ## References
 
+- [flutter-ssl-keylog](https://github.com/kewe87/flutter-ssl-keylog) — Frida-based TLS key extraction used to reverse-engineer the DJI Home app API
 - [dji-romo-video-control](https://github.com/yamasammy/dji-romo-video-control) — Original reverse-engineering of DJI Romo API (REST endpoints, Agora video)
 - [dji-home-credential-extractor](https://github.com/xn0tsa/dji-home-credential-extractor) — Tool for extracting DJI Home app credentials via Android emulator
 - [DJI Cloud API](https://github.com/dji-sdk/Cloud-API-Doc) — Official DJI MQTT "thing model" architecture (same pattern used by Romo)
@@ -163,17 +168,46 @@ MIT
 
 Custom Home Assistant Integration für den **DJI Romo** Saugroboter über die inoffizielle, reverse-engineerte DJI Cloud API.
 
-> **Version:** 0.1.0-beta
+> **Version:** 0.2.0-beta
 
 ---
 
 ## Funktionen
 
-### Echtzeit-Sensoren via MQTT (alle verifiziert)
+### Steuerung
+
+| Aktion | Typ | Beschreibung |
+|---|---|---|
+| Reinigung starten | Vacuum Entity | Startet mit gewähltem Programm oder allen Räumen |
+| Pause | Vacuum Entity | Reinigung pausieren |
+| Stop | Vacuum Entity | Reinigung abbrechen |
+| Zurück zur Basis | Vacuum Entity + Button | Roboter zurückschicken |
+| Saugstärke | Vacuum Entity | Leise / Standard / Max |
+| Wischpads reinigen | Button | Mopp-Reinigung starten |
+| Absaugen | Button | Staubsammlung starten |
+| Trocknen | Button | Mopp-Trocknung starten |
+
+### Reinigungsprogramme
 
 | Entity | Typ | Beschreibung |
 |---|---|---|
-| Staubsauger | `vacuum` | Status, Akku, Pause, Stop, Zurück zur Basis |
+| Reinigungsprogramm | `select` | Auswahl aus in der App konfigurierten Programmen |
+
+Die Programme werden aus der DJI Cloud geladen (identisch mit der DJI Home App). Jedes Programm enthält Raum-spezifische Einstellungen wie Reinigungsmodus, Saugstärke, Wassermenge und Raumreihenfolge.
+
+### Karte
+
+| Entity | Typ | Beschreibung |
+|---|---|---|
+| Karte | `camera` | Grundriss mit Raum-Polygonen als PNG |
+
+Die Karte wird als JSON aus der DJI Cloud geladen und zeigt Räume, Teppichbereiche, Sperrzonen, virtuelle Wände und die Dockposition. Aktualisiert sich alle 5 Minuten.
+
+### Echtzeit-Sensoren via MQTT
+
+| Entity | Typ | Beschreibung |
+|---|---|---|
+| Staubsauger | `vacuum` | Status, Akku, Start, Pause, Stop, Zurück, Saugstärke |
 | Akkustand | `sensor` | Akkustand in % |
 | Saugstärke | `sensor` | Leise / Standard / Max |
 | Reinigungsmodus | `sensor` | Saugen / Wischen / Saugen & Wischen / Erst saugen dann wischen |
@@ -201,16 +235,12 @@ Custom Home Assistant Integration für den **DJI Romo** Saugroboter über die in
 | Tierpflege | `binary_sensor` | Einstellung |
 | Treppenvermeidung | `binary_sensor` | Einstellung |
 
-### Befehle (alle verifiziert)
+### Architektur
 
-| Aktion | Typ | Beschreibung |
-|---|---|---|
-| Pause | Vacuum Entity | Reinigung pausieren |
-| Stop | Vacuum Entity | Reinigung abbrechen |
-| Zurück zur Basis | Vacuum Entity + Button | Roboter zurückschicken |
-| Wischpads reinigen | Button | Mopp-Reinigung starten |
-| Absaugen | Button | Staubsammlung starten |
-| Trocknen | Button | Mopp-Trocknung starten |
+- **MQTT Push** für Gerätestatus (~1 Update pro Sekunde, kein Polling)
+- **REST API** für Authentifizierung, Befehle, Kartendaten und Reinigungsprogramme
+- MQTT-Token erneuert sich automatisch alle ~4 Stunden
+- Kartendaten auf AWS S3 mit AES256-Verschlüsselung (wird transparent entschlüsselt)
 
 ---
 
@@ -225,17 +255,7 @@ Du brauchst zwei Werte aus der DJI Home App:
 
 ### Zugangsdaten extrahieren
 
-#### Option A: Automatisches Script (empfohlen)
-
-Voraussetzungen: Python 3.10+, gerootetes Android-Gerät, ADB
-
-```bash
-python scripts/extract_credentials.py
-```
-
-Das Script führt dich Schritt für Schritt durch die Extraktion.
-
-#### Option B: Manuell (gerootetes Android)
+#### Option A: Manuell (gerootetes Android)
 
 1. **Kabelloses Debugging** in den Entwickleroptionen aktivieren
 2. Über ADB verbinden:
@@ -254,7 +274,7 @@ Das Script führt dich Schritt für Schritt durch die Extraktion.
    rm /data/local/tmp/heap.bin
    ```
 
-#### Option C: Emulator (kein Root nötig, nur macOS)
+#### Option B: Emulator (kein Root nötig, nur macOS)
 
 Nutze den [dji-home-credential-extractor](https://github.com/xn0tsa/dji-home-credential-extractor).
 
@@ -277,19 +297,26 @@ Nutze den [dji-home-credential-extractor](https://github.com/xn0tsa/dji-home-cre
 
 ## Einrichtung
 
-1. **Einstellungen → Geräte & Dienste → Integration hinzufügen**
+1. **Einstellungen > Geräte & Dienste > Integration hinzufügen**
 2. Nach **DJI Romo** suchen
 3. **User Token** und **Geräte-Seriennummer** eingeben
 4. Fertig — Entities erscheinen sofort mit Live-Daten
 
 ---
 
+## API-Dokumentation
+
+Siehe [API.md](API.md) für die vollständige REST API Referenz mit allen entdeckten Endpoints, Request/Response-Formaten und Kartenstruktur.
+
+---
+
 ## Referenzen
 
+- [flutter-ssl-keylog](https://github.com/kewe87/flutter-ssl-keylog) — Frida-basierte TLS-Key-Extraktion zum Reverse-Engineering der DJI Home App API
 - [dji-romo-video-control](https://github.com/yamasammy/dji-romo-video-control) — Original Reverse-Engineering der DJI Romo API
 - [dji-home-credential-extractor](https://github.com/xn0tsa/dji-home-credential-extractor) — Credential-Extraktion über Android-Emulator
 - [DJI Cloud API](https://github.com/dji-sdk/Cloud-API-Doc) — Offizielles DJI MQTT "Thing Model" (gleiches Muster wie Romo)
-- [Cosmo-Edge: DJI Romo MQTT/BOLA](https://cosmo-edge.com/dji-romo-security-mqtt-bola-flaw/) — Sicherheitsforschung die zur MQTT-Entdeckung führte
+- [Cosmo-Edge: DJI Romo MQTT/BOLA](https://cosmo-edge.com/dji-romo-security-mqtt-bola-flaw/) �� Sicherheitsforschung die zur MQTT-Entdeckung führte
 - [HA Vacuum Entity Docs](https://developers.home-assistant.io/docs/core/entity/vacuum/)
 
 ## Lizenz
