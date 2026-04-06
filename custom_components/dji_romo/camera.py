@@ -69,6 +69,8 @@ class RomoMapCamera(RomoEntity, Camera):
         self._map_data: dict[str, Any] | None = None
         self._map_info: dict[str, Any] | None = None
         self._rooms: list[dict[str, Any]] = []
+        self._robot_pos: dict[str, float] | None = None
+        self._dock_pos: dict[str, float] | None = None
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
@@ -80,9 +82,32 @@ class RomoMapCamera(RomoEntity, Camera):
                 self.hass, self._async_scheduled_update, timedelta(minutes=5)
             )
         )
+        # Refresh robot position every 10 seconds
+        self.async_on_remove(
+            async_track_time_interval(
+                self.hass, self._async_update_position, timedelta(seconds=10)
+            )
+        )
 
     async def _async_scheduled_update(self, _now=None) -> None:
         await self._async_update_map()
+
+    async def _async_update_position(self, _now=None) -> None:
+        """Fetch robot and dock position, re-render map."""
+        try:
+            props = await self.coordinator.client.async_get_properties()
+            robot = props.get("robot_position")
+            if robot and robot.get("status") == 2:
+                self._robot_pos = {"x": robot["px"], "y": robot["py"]}
+            else:
+                self._robot_pos = None
+            dock = props.get("dock_position")
+            if dock:
+                self._dock_pos = {"x": dock["px"], "y": dock["py"]}
+            if self._rooms:
+                self._render()
+        except Exception:
+            _LOGGER.debug("Could not update robot position")
 
     async def _async_update_map(self) -> None:
         """Fetch map data from REST API and render."""
@@ -95,7 +120,8 @@ class RomoMapCamera(RomoEntity, Camera):
                 data.get("grid_map", {}).get("map_info", {})
             )
             self._rooms = data.get("seg_map", {}).get("poly_info", [])
-            self._render()
+            # Also fetch initial positions
+            await self._async_update_position()
         except Exception:
             _LOGGER.exception("Failed to update map")
 
@@ -175,13 +201,15 @@ class RomoMapCamera(RomoEntity, Camera):
                     pts = [self._to_pixel(v, min_x, min_y, scale) for v in verts]
                     draw.line(pts, fill=(200, 40, 40), width=3)
 
-        # Draw dock position (origin is typically dock location)
-        dock_x = self._map_info.get("origin_x", 0)
-        dock_y = self._map_info.get("origin_y", 0)
-        # Only draw if dock is within map bounds
-        if min_x <= dock_x <= max_x and min_y <= dock_y <= max_y:
-            dx, dy = self._to_pixel({"x": dock_x, "y": dock_y}, min_x, min_y, scale)
-            draw.ellipse([dx - 6, dy - 6, dx + 6, dy + 6], fill=(50, 200, 100))
+        # Draw dock position
+        if self._dock_pos:
+            dx, dy = self._to_pixel(self._dock_pos, min_x, min_y, scale)
+            draw.rectangle([dx - 8, dy - 8, dx + 8, dy + 8], fill=(50, 200, 100), outline=(255, 255, 255))
+
+        # Draw robot position
+        if self._robot_pos:
+            rx, ry = self._to_pixel(self._robot_pos, min_x, min_y, scale)
+            draw.ellipse([rx - 8, ry - 8, rx + 8, ry + 8], fill=(60, 140, 255), outline=(255, 255, 255), width=2)
 
         # Export as PNG
         buf = io.BytesIO()

@@ -153,6 +153,21 @@ class RomoClient:
     # Map & Shortcuts
     # ------------------------------------------------------------------
 
+    async def async_get_properties(self) -> dict[str, Any]:
+        """Fetch device properties including robot/dock position, firmware, tank levels."""
+        data = await self._get_device("things/properties")
+        return data.get("data", {})
+
+    async def async_get_dock_consumables(self) -> dict[str, Any]:
+        """Fetch dock consumables (water tanks, dust bag, cleaning solution)."""
+        data = await self._get_device("consumables/dock")
+        return data.get("data", {})
+
+    async def async_get_next_timer(self) -> dict[str, Any] | None:
+        """Fetch next scheduled cleaning timer."""
+        data = await self._get_device("timers/next?slot_id=0")
+        return data.get("data")
+
     async def async_get_shortcuts(self) -> list[dict[str, Any]]:
         """Fetch cleaning presets (shortcuts). Each contains plan_area_configs and room_map."""
         data = await self._get_device("shortcuts/list?plan_data_version=0&slot_id=0")

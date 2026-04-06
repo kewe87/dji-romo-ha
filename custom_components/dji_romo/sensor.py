@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -55,6 +55,13 @@ async def async_setup_entry(
         RomoAttrSensor(coordinator, sn, "total_cleans", "total_cleans", "mdi:counter", None),
         RomoAttrSensor(coordinator, sn, "total_area", "total_area", "mdi:texture-box", "m²"),
         RomoAttrSensor(coordinator, sn, "total_duration", "total_duration", "mdi:clock-outline", UnitOfTime.SECONDS),
+        # Dock consumables (from REST, polled)
+        RomoDockSensor(coordinator, sn, "clean_water_tank", "Clean water tank", "mdi:water", "clean_water_tank"),
+        RomoDockSensor(coordinator, sn, "dirty_water_tank", "Dirty water tank", "mdi:water-off", "dirty_water_tank"),
+        RomoDockSensor(coordinator, sn, "cleaning_solution", "Cleaning solution", "mdi:bottle-tonic", "main_cleaner"),
+        RomoDockSensor(coordinator, sn, "dust_bag_dock", "Dust bag", "mdi:delete-variant", "dust_bag_consumable"),
+        # Next scheduled timer (from REST, polled)
+        RomoNextTimerSensor(coordinator, sn),
     ])
 
 
@@ -256,3 +263,93 @@ class RomoHmsAlertsSensor(RomoSensor):
     def extra_state_attributes(self) -> dict:
         alerts = self.coordinator.data.hms_alerts
         return {"alerts": alerts} if alerts else {}
+
+
+class RomoDockSensor(RomoEntity, SensorEntity):
+    """Dock consumable sensor (REST-polled)."""
+
+    _attr_should_poll = True
+    _attr_native_unit_of_measurement = PERCENTAGE
+
+    def __init__(self, coordinator, sn, key: str, name: str, icon: str, data_key: str):
+        super().__init__(coordinator, sn)
+        self._attr_unique_id = f"{sn}_{key}"
+        self._attr_name = name
+        self._attr_icon = icon
+        self._data_key = data_key
+        self._dock_data: dict | None = None
+
+    async def async_update(self) -> None:
+        try:
+            self._dock_data = await self.coordinator.client.async_get_dock_consumables()
+        except Exception:
+            pass
+
+    @property
+    def native_value(self) -> int | None:
+        if not self._dock_data:
+            return None
+        item = self._dock_data.get(self._data_key)
+        if isinstance(item, dict):
+            return item.get("percentage")
+        return None
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        if not self._dock_data:
+            return {}
+        item = self._dock_data.get(self._data_key)
+        if not isinstance(item, dict):
+            return {}
+        attrs = {}
+        if "installed" in item:
+            attrs["installed"] = item["installed"] == 1
+        # For dust bag / cleaning solution with consumable sub-dict
+        consumable = item.get("cleaner_consumable") or item
+        if isinstance(consumable, dict):
+            if consumable.get("alarm"):
+                attrs["alarm"] = True
+                attrs["alarm_message"] = consumable.get("alarm_message", "")
+            if consumable.get("name"):
+                attrs["product_name"] = consumable["name"]
+        return attrs
+
+
+class RomoNextTimerSensor(RomoEntity, SensorEntity):
+    """Next scheduled cleaning time (REST-polled)."""
+
+    _attr_should_poll = True
+    _attr_name = "Next scheduled clean"
+    _attr_icon = "mdi:calendar-clock"
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+
+    def __init__(self, coordinator, sn):
+        super().__init__(coordinator, sn)
+        self._attr_unique_id = f"{sn}_next_timer"
+        self._timer_data: dict | None = None
+
+    async def async_update(self) -> None:
+        try:
+            self._timer_data = await self.coordinator.client.async_get_next_timer()
+        except Exception:
+            pass
+
+    @property
+    def native_value(self) -> datetime | None:
+        if not self._timer_data:
+            return None
+        ts = self._timer_data.get("next_time")
+        if not ts:
+            return None
+        return datetime.fromtimestamp(ts / 1000, tz=timezone.utc)
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        if not self._timer_data:
+            return {}
+        return {
+            "plan_name": self._timer_data.get("plan_name", ""),
+            "enabled": self._timer_data.get("open", False),
+            "hour": self._timer_data.get("execute_time_hour"),
+            "minute": self._timer_data.get("execute_time_min"),
+        }
