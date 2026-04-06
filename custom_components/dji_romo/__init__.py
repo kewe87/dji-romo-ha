@@ -22,7 +22,10 @@ from .const import CONF_DEVICE_SN, CONF_USER_TOKEN, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS: list[Platform] = [Platform.VACUUM, Platform.SENSOR, Platform.BINARY_SENSOR, Platform.BUTTON]
+PLATFORMS: list[Platform] = [
+    Platform.VACUUM, Platform.SENSOR, Platform.BINARY_SENSOR,
+    Platform.BUTTON, Platform.CAMERA, Platform.SELECT,
+]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -66,6 +69,7 @@ class RomoStateCoordinator:
         self._state = RomoState()
         self._last_update: datetime | None = None
         self._connected = False
+        self.selected_shortcut: dict | None = None
 
     @property
     def data(self) -> RomoState:

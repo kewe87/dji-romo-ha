@@ -272,6 +272,70 @@ class RomoClient:
 
         await self._post_device("jobs/cleans/start", body)
 
+    async def async_start_clean_from_shortcut(
+        self,
+        shortcut: dict[str, Any],
+        fan_speed: int | None = None,
+    ) -> None:
+        """Start cleaning using a shortcut (pre-configured plan from the app).
+
+        Preserves all room configs from the shortcut, optionally overriding fan_speed.
+        """
+        plan_configs = shortcut.get("plan_area_configs", [])
+        room_map = shortcut.get("room_map", {})
+
+        if not plan_configs:
+            _LOGGER.error("Shortcut has no plan_area_configs")
+            return
+
+        area_configs = []
+        for cfg in plan_configs:
+            entry = {
+                "config_uuid": str(uuid.uuid4()),
+                "clean_mode": cfg.get("clean_mode", 0),
+                "fan_speed": fan_speed if fan_speed is not None else cfg.get("fan_speed", 2),
+                "water_level": cfg.get("water_level", 2),
+                "clean_num": cfg.get("clean_num", 1),
+                "storm_mode": cfg.get("storm_mode", 0),
+                "secondary_clean_num": cfg.get("secondary_clean_num", 1),
+                "clean_speed": cfg.get("clean_speed", 2),
+                "order_id": cfg.get("order_id", 1),
+                "poly_type": cfg.get("poly_type", 2),
+                "poly_index": cfg.get("poly_index", 0),
+                "poly_label": cfg.get("poly_label", 0),
+                "user_label": cfg.get("user_label", 0),
+                "poly_name_index": cfg.get("poly_name_index", 0),
+                "skip_area": 0,
+                "floor_cleaner_type": cfg.get("floor_cleaner_type", 0),
+                "repeat_mop": cfg.get("repeat_mop", False),
+            }
+            area_configs.append(entry)
+
+        body = {
+            "sn": self._device_sn,
+            "job_timeout": 3600,
+            "method": "room_clean",
+            "data": {
+                "action": "start",
+                "name": shortcut.get("plan_name", ""),
+                "plan_name_key": shortcut.get("plan_name_key", ""),
+                "plan_uuid": shortcut.get("plan_uuid", str(uuid.uuid4())),
+                "plan_type": shortcut.get("plan_type", 2),
+                "clean_area_type": shortcut.get("clean_area_type", 2),
+                "is_valid": True,
+                "plan_area_configs": area_configs,
+                "room_map": {
+                    "map_index": room_map.get("map_index", 0),
+                    "map_version": room_map.get("map_version", 0),
+                    "file_id": room_map.get("file_id", ""),
+                    "slot_id": room_map.get("slot_id", 0),
+                },
+                "area_config_type": shortcut.get("area_config_type", 0),
+            },
+        }
+
+        await self._post_device("jobs/cleans/start", body)
+
     async def async_return_to_base(self) -> None:
         """Verified: POST .../jobs/goHomes/start"""
         await self._post_device("jobs/goHomes/start")

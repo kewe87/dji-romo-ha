@@ -66,16 +66,20 @@ class RomoVacuumEntity(RomoEntity, StateVacuumEntity):
         return self.coordinator.data.fan_speed_name
 
     async def async_start(self, **kwargs: Any) -> None:
-        """Start cleaning all rooms with current fan speed setting."""
+        """Start cleaning using the selected program, or all rooms with defaults."""
         speed_map = {v: k for k, v in FAN_SPEED_NAMES.items()}
         fan = speed_map.get(self.fan_speed, 2)
-        await self.coordinator.client.async_start_clean(fan_speed=fan)
+        shortcut = self.coordinator.selected_shortcut
+        if shortcut:
+            await self.coordinator.client.async_start_clean_from_shortcut(
+                shortcut, fan_speed=fan
+            )
+        else:
+            await self.coordinator.client.async_start_clean(fan_speed=fan)
 
     async def async_set_fan_speed(self, fan_speed: str, **kwargs: Any) -> None:
-        """Set fan speed for next cleaning run."""
-        speed_map = {v: k for k, v in FAN_SPEED_NAMES.items()}
-        fan = speed_map.get(fan_speed, 2)
-        await self.coordinator.client.async_start_clean(fan_speed=fan)
+        """Store fan speed preference (applied on next start)."""
+        pass
 
     async def async_pause(self, **kwargs: Any) -> None:
         await self.coordinator.client.async_pause()
