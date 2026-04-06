@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -15,7 +15,10 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import RomoStateCoordinator
-from .const import CONF_DEVICE_SN, DOMAIN
+from .const import (
+    CONF_DEVICE_SN, DOMAIN,
+    OPT_DOCK_INTERVAL, DEFAULT_DOCK_INTERVAL,
+)
 from .entity import RomoEntity
 
 
@@ -56,12 +59,13 @@ async def async_setup_entry(
         RomoAttrSensor(coordinator, sn, "total_area", "total_area", "mdi:texture-box", "m²"),
         RomoAttrSensor(coordinator, sn, "total_duration", "total_duration", "mdi:clock-outline", UnitOfTime.SECONDS),
         # Dock consumables (from REST, polled)
-        RomoDockSensor(coordinator, sn, "clean_water_tank", "Clean water tank", "mdi:water", "clean_water_tank"),
-        RomoDockSensor(coordinator, sn, "dirty_water_tank", "Dirty water tank", "mdi:water-off", "dirty_water_tank"),
-        RomoDockSensor(coordinator, sn, "cleaning_solution", "Cleaning solution", "mdi:bottle-tonic", "main_cleaner"),
-        RomoDockSensor(coordinator, sn, "dust_bag_dock", "Dust bag", "mdi:delete-variant", "dust_bag_consumable"),
+        dock_interval = timedelta(seconds=entry.options.get(OPT_DOCK_INTERVAL, DEFAULT_DOCK_INTERVAL))
+        RomoDockSensor(coordinator, sn, "clean_water_tank", "Clean water tank", "mdi:water", "clean_water_tank", dock_interval),
+        RomoDockSensor(coordinator, sn, "dirty_water_tank", "Dirty water tank", "mdi:water-off", "dirty_water_tank", dock_interval),
+        RomoDockSensor(coordinator, sn, "cleaning_solution", "Cleaning solution", "mdi:bottle-tonic", "main_cleaner", dock_interval),
+        RomoDockSensor(coordinator, sn, "dust_bag_dock", "Dust bag", "mdi:delete-variant", "dust_bag_consumable", dock_interval),
         # Next scheduled timer (from REST, polled)
-        RomoNextTimerSensor(coordinator, sn),
+        RomoNextTimerSensor(coordinator, sn, dock_interval),
     ])
 
 
@@ -271,13 +275,15 @@ class RomoDockSensor(RomoEntity, SensorEntity):
     _attr_should_poll = True
     _attr_native_unit_of_measurement = PERCENTAGE
 
-    def __init__(self, coordinator, sn, key: str, name: str, icon: str, data_key: str):
+    def __init__(self, coordinator, sn, key: str, name: str, icon: str, data_key: str, scan_interval: timedelta | None = None):
         super().__init__(coordinator, sn)
         self._attr_unique_id = f"{sn}_{key}"
         self._attr_name = name
         self._attr_icon = icon
         self._data_key = data_key
         self._dock_data: dict | None = None
+        if scan_interval:
+            self._attr_scan_interval = scan_interval
 
     async def async_update(self) -> None:
         try:
@@ -323,10 +329,12 @@ class RomoNextTimerSensor(RomoEntity, SensorEntity):
     _attr_icon = "mdi:calendar-clock"
     _attr_device_class = SensorDeviceClass.TIMESTAMP
 
-    def __init__(self, coordinator, sn):
+    def __init__(self, coordinator, sn, scan_interval: timedelta | None = None):
         super().__init__(coordinator, sn)
         self._attr_unique_id = f"{sn}_next_timer"
         self._timer_data: dict | None = None
+        if scan_interval:
+            self._attr_scan_interval = scan_interval
 
     async def async_update(self) -> None:
         try:

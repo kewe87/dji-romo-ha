@@ -20,7 +20,11 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_time_interval
 
 from . import RomoStateCoordinator
-from .const import CONF_DEVICE_SN, DOMAIN
+from .const import (
+    CONF_DEVICE_SN, DOMAIN,
+    OPT_POSITION_INTERVAL, OPT_MAP_INTERVAL,
+    DEFAULT_POSITION_INTERVAL, DEFAULT_MAP_INTERVAL,
+)
 from .entity import RomoEntity
 
 from datetime import timedelta
@@ -41,9 +45,28 @@ ROOM_PALETTE: list[tuple[int, int, int]] = [
     (220, 180, 160),  # salmon
 ]
 
+# DJI room type labels by user_label ID
+ROOM_LABELS: dict[int, str] = {
+    1: "Bedroom",
+    2: "Guest room",
+    3: "Kitchen",
+    4: "Dining",
+    5: "Study",
+    6: "Living room",
+    7: "Hallway",
+    8: "Storage",
+    9: "Balcony",
+    10: "Laundry",
+    11: "Closet",
+    12: "Office",
+    13: "Entrance",
+    14: "Bathroom",
+    15: "Kids room",
+}
+
 # Map rendering settings
-MAP_IMAGE_WIDTH = 600
-MAP_PADDING = 20
+MAP_IMAGE_WIDTH = 400
+MAP_PADDING = 15
 
 
 async def async_setup_entry(
@@ -52,7 +75,7 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     coordinator: RomoStateCoordinator = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities([RomoMapCamera(coordinator, entry.data[CONF_DEVICE_SN])])
+    async_add_entities([RomoMapCamera(coordinator, entry)])
 
 
 class RomoMapCamera(RomoEntity, Camera):
@@ -61,9 +84,11 @@ class RomoMapCamera(RomoEntity, Camera):
     _attr_name = "Map"
     _attr_frame_interval = 30
 
-    def __init__(self, coordinator: RomoStateCoordinator, device_sn: str) -> None:
+    def __init__(self, coordinator: RomoStateCoordinator, entry: ConfigEntry) -> None:
+        device_sn = entry.data[CONF_DEVICE_SN]
         RomoEntity.__init__(self, coordinator, device_sn)
         Camera.__init__(self)
+        self._entry = entry
         self._attr_unique_id = f"{device_sn}_map"
         self._image: bytes | None = None
         self._map_data: dict[str, Any] | None = None
@@ -74,18 +99,21 @@ class RomoMapCamera(RomoEntity, Camera):
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
+        opts = self._entry.options
+        map_interval = opts.get(OPT_MAP_INTERVAL, DEFAULT_MAP_INTERVAL)
+        pos_interval = opts.get(OPT_POSITION_INTERVAL, DEFAULT_POSITION_INTERVAL)
         # Fetch map on startup
         await self._async_update_map()
-        # Refresh map every 5 minutes (handles map version changes)
+        # Refresh map periodically
         self.async_on_remove(
             async_track_time_interval(
-                self.hass, self._async_scheduled_update, timedelta(minutes=5)
+                self.hass, self._async_scheduled_update, timedelta(seconds=map_interval)
             )
         )
-        # Refresh robot position every 10 seconds
+        # Refresh robot position
         self.async_on_remove(
             async_track_time_interval(
-                self.hass, self._async_update_position, timedelta(seconds=10)
+                self.hass, self._async_update_position, timedelta(seconds=pos_interval)
             )
         )
 
@@ -174,6 +202,19 @@ class RomoMapCamera(RomoEntity, Camera):
             color = ROOM_PALETTE[i % len(ROOM_PALETTE)]
             pts = [self._to_pixel(v, min_x, min_y, scale) for v in verts]
             draw.polygon(pts, fill=color, outline=(255, 255, 255))
+
+            # Draw room name at centroid
+            label_id = room.get("user_label", 0)
+            name = room.get("custom_name") or ROOM_LABELS.get(label_id, f"Room {i+1}")
+            cx = sum(p[0] for p in pts) // len(pts)
+            cy = sum(p[1] for p in pts) // len(pts)
+            try:
+                font = ImageFont.load_default(size=11)
+            except TypeError:
+                font = ImageFont.load_default()
+            bbox = draw.textbbox((cx, cy), name, font=font, anchor="mm")
+            draw.rectangle(bbox, fill=(40, 40, 45, 180))
+            draw.text((cx, cy), name, fill=(255, 255, 255), font=font, anchor="mm")
 
         # Draw room borders (thicker, from border_vertices)
         for room in self._rooms:
