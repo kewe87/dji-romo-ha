@@ -30,6 +30,8 @@ async def async_setup_entry(
     coordinator: RomoStateCoordinator = hass.data[DOMAIN][entry.entry_id]
     sn: str = entry.data[CONF_DEVICE_SN]
 
+    dock_interval = timedelta(seconds=entry.options.get(OPT_DOCK_INTERVAL, DEFAULT_DOCK_INTERVAL))
+
     async_add_entities([
         # Core sensors
         RomoBatterySensor(coordinator, sn),
@@ -59,7 +61,6 @@ async def async_setup_entry(
         RomoAttrSensor(coordinator, sn, "total_area", "total_area", "mdi:texture-box", "m²"),
         RomoAttrSensor(coordinator, sn, "total_duration", "total_duration", "mdi:clock-outline", UnitOfTime.SECONDS),
         # Dock consumables (from REST, polled)
-        dock_interval = timedelta(seconds=entry.options.get(OPT_DOCK_INTERVAL, DEFAULT_DOCK_INTERVAL))
         RomoDockSensor(coordinator, sn, "clean_water_tank", "Clean water tank", "mdi:water", "clean_water_tank", dock_interval),
         RomoDockSensor(coordinator, sn, "dirty_water_tank", "Dirty water tank", "mdi:water-off", "dirty_water_tank", dock_interval),
         RomoDockSensor(coordinator, sn, "cleaning_solution", "Cleaning solution", "mdi:bottle-tonic", "main_cleaner", dock_interval),

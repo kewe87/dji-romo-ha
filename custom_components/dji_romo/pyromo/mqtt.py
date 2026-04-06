@@ -55,7 +55,7 @@ class RomoMqttClient:
     async def async_connect(self) -> None:
         self._loop = asyncio.get_running_loop()
         creds = await self._get_mqtt_creds()
-        self._setup_client(creds)
+        await self._loop.run_in_executor(None, self._setup_client, creds)
         self._client.connect_async(
             creds["mqtt_domain"], creds["mqtt_port"], keepalive=MQTT_KEEPALIVE,
         )
@@ -273,7 +273,7 @@ class RomoMqttClient:
         if self._client:
             self._client.loop_stop()
             self._client.disconnect()
-        self._setup_client(creds)
+        await self._loop.run_in_executor(None, self._setup_client, creds)
         self._client.connect_async(
             creds["mqtt_domain"], creds["mqtt_port"], keepalive=MQTT_KEEPALIVE,
         )
