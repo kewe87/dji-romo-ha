@@ -130,6 +130,30 @@ class RomoStateCoordinator:
             self._state.battery_care_setting = bool(settings.get("battery_care"))
             self._state.device_volume = settings.get("device_volume")
             self._state.device_language = settings.get("device_language")
+            # Extended settings
+            ai = settings.get("ai_recognition", {})
+            if isinstance(ai, dict):
+                self._state.liquid_avoid = bool(ai.get("liquid_avoid"))
+            self._state.carpet_deep_clean = bool(
+                settings.get("carpet_mode_extra", {}).get("carpet_pressure_extra_clean")
+            )
+            dc = settings.get("dust_collect", {})
+            self._state.auto_dust_collect = bool(dc.get("collect_mode")) if isinstance(dc, dict) else None
+            self._state.dust_collect_mode = dc.get("collect_mode") if isinstance(dc, dict) else None
+            dry = settings.get("drying", {})
+            self._state.auto_dry = bool(dry.get("auto_enable")) if isinstance(dry, dict) else None
+            self._state.drying_mode = dry.get("mode") if isinstance(dry, dict) else None
+            add = settings.get("add_cleaner_auto", {})
+            self._state.auto_add_solution = bool(add.get("is_add_in_mop")) if isinstance(add, dict) else None
+            self._state.auto_wash_mop = bool(settings.get("auto_wash"))
+            nd = settings.get("no_disturb", {})
+            if isinstance(nd, dict):
+                self._state.dnd_start_hour = nd.get("start_hour")
+                self._state.dnd_start_min = nd.get("start_minute")
+                self._state.dnd_end_hour = nd.get("end_hour")
+                self._state.dnd_end_min = nd.get("end_minute")
+            wb = settings.get("wash_back", {})
+            self._state.wash_back_area = wb.get("wash_back_area") if isinstance(wb, dict) else None
         except Exception:
             _LOGGER.debug("Could not fetch settings")
 

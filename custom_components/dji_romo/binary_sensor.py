@@ -41,6 +41,13 @@ async def async_setup_entry(
         RomoBoolSensor(coordinator, sn, "particle_clean", "enhance_particle_clean", "mdi:grain", None, EntityCategory.DIAGNOSTIC),
         RomoBoolSensor(coordinator, sn, "pet_care", "pet_care", "mdi:paw", None, EntityCategory.DIAGNOSTIC),
         RomoBoolSensor(coordinator, sn, "stair_mode", "stair_mode", "mdi:stairs", None, EntityCategory.DIAGNOSTIC),
+        # Extended settings (from REST /settings)
+        RomoBoolSensor(coordinator, sn, "liquid_avoid", "liquid_avoid", "mdi:water-alert", None, EntityCategory.DIAGNOSTIC),
+        RomoBoolSensor(coordinator, sn, "carpet_deep_clean", "carpet_deep_clean", "mdi:rug", None, EntityCategory.DIAGNOSTIC),
+        RomoBoolSensor(coordinator, sn, "auto_dust_collect", "auto_dust_collect", "mdi:delete-sweep", None, EntityCategory.DIAGNOSTIC),
+        RomoBoolSensor(coordinator, sn, "auto_dry", "auto_dry", "mdi:fan", None, EntityCategory.DIAGNOSTIC),
+        RomoBoolSensor(coordinator, sn, "auto_add_solution", "auto_add_solution", "mdi:bottle-tonic-plus", None, EntityCategory.DIAGNOSTIC),
+        RomoBoolSensor(coordinator, sn, "auto_wash_mop", "auto_wash_mop", "mdi:washing-machine", None, EntityCategory.DIAGNOSTIC),
     ])
 
 

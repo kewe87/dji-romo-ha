@@ -177,7 +177,13 @@ class RomoMqttClient:
             self._state.self_clean_count = cons.get("self_clean_cnt", self._state.self_clean_count)
 
     def _handle_clean_progress(self, data: dict[str, Any]) -> None:
-        self._state.event_status = data.get("status", self._state.event_status)
+        status = data.get("status", self._state.event_status)
+        self._state.event_status = status
+
+        if status in ("canceled", "ok", "idle"):
+            self._reset_cleaning_state()
+            return
+
         sub = data.get("sub_job_status", {})
         self._state.sub_job_name = sub.get("cur_submission", self._state.sub_job_name)
         self._state.sub_job_state = sub.get("submission_state", self._state.sub_job_state)
@@ -196,10 +202,24 @@ class RomoMqttClient:
             self._state.clean_mode = cfg.get("clean_mode", self._state.clean_mode)
             self._state.clean_speed = cfg.get("clean_speed", self._state.clean_speed)
 
+    def _reset_cleaning_state(self) -> None:
+        """Reset all cleaning-related fields when a job ends."""
+        self._state.progress_percent = None
+        self._state.spent_duration = None
+        self._state.estimated_remaining = None
+        self._state.fan_speed = None
+        self._state.clean_mode = None
+        self._state.clean_speed = None
+        self._state.sub_job_name = None
+        self._state.sub_job_state = None
+        self._state.startup_type = None
+        self._state.error = None
+
     def _handle_go_home(self, data: dict[str, Any]) -> None:
         status = data.get("status", "")
         if status == "in_progress":
             self._state.event_status = "returning"
+            self._reset_cleaning_state()
         elif status == "ok":
             self._state.event_status = "idle"
         sub = data.get("sub_job_status", {})
@@ -210,8 +230,9 @@ class RomoMqttClient:
         status = data.get("status", "")
         if status == "in_progress":
             self._state.event_status = "drying"
-        elif status == "canceled":
+        elif status in ("canceled", "ok"):
             self._state.event_status = None
+            self._reset_cleaning_state()
         sub = data.get("sub_job_status", {})
         self._state.sub_job_name = sub.get("cur_submission", self._state.sub_job_name)
         self._state.sub_job_state = sub.get("submission_state", self._state.sub_job_state)
@@ -222,8 +243,9 @@ class RomoMqttClient:
             self._state.event_status = "in_progress"
         elif status == "paused":
             self._state.event_status = "paused"
-        elif status == "canceled":
+        elif status in ("canceled", "ok"):
             self._state.event_status = None
+            self._reset_cleaning_state()
         sub = data.get("sub_job_status", {})
         self._state.sub_job_name = sub.get("cur_submission", self._state.sub_job_name)
         self._state.sub_job_state = sub.get("submission_state", self._state.sub_job_state)

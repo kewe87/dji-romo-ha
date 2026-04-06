@@ -66,6 +66,10 @@ async def async_setup_entry(
         RomoDockSensor(coordinator, sn, "dust_bag_dock", "Dust bag", "mdi:delete-variant", "dust_bag_consumable", dock_interval),
         # Next scheduled timer (from REST, polled)
         RomoNextTimerSensor(coordinator, sn, dock_interval),
+        # Extended settings (from REST, set on startup)
+        RomoAttrSensor(coordinator, sn, "wash_back_area", "wash_back_area", "mdi:map-marker-distance", None),
+        RomoAttrSensor(coordinator, sn, "drying_mode", "drying_mode", "mdi:fan", None),
+        RomoAttrSensor(coordinator, sn, "dust_collect_mode", "dust_collect_mode", "mdi:delete-sweep", None),
     ])
 
 

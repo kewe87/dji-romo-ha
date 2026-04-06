@@ -83,7 +83,7 @@ class RomoState:
     sub_job_name: str | None = None  # cur_submission: idle, exit_base, cover_tree, dust_collect, go_home, drying, base_inject_water
     sub_job_state: str | None = None  # running, paused, stopping
 
-    # --- device_state (property topic, on change) ---
+    # --- device_state (property topic, on change) / REST settings ---
     device_volume: int | None = None
     device_language: str | None = None
     battery_care_setting: bool | None = None
@@ -95,6 +95,21 @@ class RomoState:
     enhance_particle_clean: bool | None = None
     pet_care: bool | None = None
     stair_mode: bool | None = None
+
+    # --- extended settings (from REST /settings) ---
+    liquid_avoid: bool | None = None
+    carpet_deep_clean: bool | None = None
+    auto_dust_collect: bool | None = None
+    auto_dry: bool | None = None
+    auto_add_solution: bool | None = None
+    auto_wash_mop: bool | None = None
+    dnd_start_hour: int | None = None
+    dnd_start_min: int | None = None
+    dnd_end_hour: int | None = None
+    dnd_end_min: int | None = None
+    wash_back_area: int | None = None
+    drying_mode: int | None = None
+    dust_collect_mode: int | None = None
 
     # --- consumables (from device_state) ---
     dust_bag_life: int | None = None
