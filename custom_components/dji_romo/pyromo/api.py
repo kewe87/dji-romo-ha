@@ -153,6 +153,11 @@ class RomoClient:
     # Map & Shortcuts
     # ------------------------------------------------------------------
 
+    async def async_get_settings(self) -> dict[str, Any]:
+        """Fetch all device settings (carpet mode, AI, DND, volume, etc.)."""
+        data = await self._get_device("settings")
+        return data.get("data", {})
+
     async def async_get_properties(self) -> dict[str, Any]:
         """Fetch device properties including robot/dock position, firmware, tank levels."""
         data = await self._get_device("things/properties")

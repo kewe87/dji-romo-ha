@@ -114,6 +114,25 @@ class RomoStateCoordinator:
         except Exception:
             _LOGGER.debug("Could not fetch properties")
 
+        # Settings (carpet mode, AI, DND, volume, etc.)
+        try:
+            settings = await self.client.async_get_settings()
+            self._state.carpet_mode = bool(settings.get("meet_carpet_mode"))
+            ai = settings.get("ai_recognition", {})
+            self._state.ai_recognition = bool(ai.get("is_open")) if isinstance(ai, dict) else None
+            self._state.child_lock = bool(settings.get("is_child_lock_open"))
+            nd = settings.get("no_disturb", {})
+            self._state.no_disturb = bool(nd.get("is_open")) if isinstance(nd, dict) else None
+            self._state.pet_care = bool(settings.get("is_pet_care"))
+            self._state.stair_mode = bool(settings.get("is_no_stair_mode"))
+            self._state.hot_water_mop = bool(settings.get("wash_mop_with_hot_water"))
+            self._state.enhance_particle_clean = bool(settings.get("enhance_particle_clean"))
+            self._state.battery_care_setting = bool(settings.get("battery_care"))
+            self._state.device_volume = settings.get("device_volume")
+            self._state.device_language = settings.get("device_language")
+        except Exception:
+            _LOGGER.debug("Could not fetch settings")
+
         # Consumables (with pre-calculated percentages from server)
         try:
             data = await self.client.async_get_consumables()
