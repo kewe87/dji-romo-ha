@@ -70,6 +70,7 @@ class RomoStateCoordinator:
         self._last_update: datetime | None = None
         self._connected = False
         self.selected_shortcut: dict | None = None
+        self.device_info: dict | None = None
 
     @property
     def data(self) -> RomoState:
@@ -96,21 +97,27 @@ class RomoStateCoordinator:
 
     async def _fetch_initial_state(self) -> None:
         """Fetch all available state from REST API to avoid 'unknown' entities."""
-        # Properties (battery, charger, mission status, settings)
+        # Properties (battery, charger, mission status, device info)
         try:
             props = await self.client.async_get_properties()
             self._state.battery = props.get("battery")
             if props.get("charger_connected") is not None:
                 self._state.charger_connected = bool(props["charger_connected"])
-            if props.get("mission_status") is None:
-                ti = props.get("task_info", {})
-                self._state.mission_status = ti.get("mission_status")
-            else:
-                self._state.mission_status = props.get("mission_status")
+            ti = props.get("task_info", {})
+            self._state.mission_status = props.get("mission_status") or ti.get("mission_status")
             if props.get("battery_care_active") is not None:
                 self._state.battery_care_active = bool(props["battery_care_active"])
             self._state.hatch_status = props.get("hatch_status")
             self._state.dust_bag_uv_enable = props.get("dust_bag_uv_enable")
+            # Device info for HA device registry
+            bi = props.get("device_base_info", {})
+            dv = bi.get("device_version", {})
+            self.device_info = {
+                "name": bi.get("name", "ROMO"),
+                "firmware_version": dv.get("firmware_version"),
+                "dock_sn": props.get("dock_sn"),
+                "device_ip": bi.get("device_ip"),
+            }
         except Exception:
             _LOGGER.debug("Could not fetch properties")
 

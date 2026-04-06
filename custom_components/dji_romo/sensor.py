@@ -70,6 +70,10 @@ async def async_setup_entry(
         RomoAttrSensor(coordinator, sn, "wash_back_area", "wash_back_area", "mdi:map-marker-distance", None),
         RomoAttrSensor(coordinator, sn, "drying_mode", "drying_mode", "mdi:fan", None),
         RomoAttrSensor(coordinator, sn, "dust_collect_mode", "dust_collect_mode", "mdi:delete-sweep", None),
+        # Device info (from REST properties, diagnostic)
+        RomoDeviceInfoSensor(coordinator, sn, "firmware", "Firmware", "mdi:chip", "firmware_version"),
+        RomoDeviceInfoSensor(coordinator, sn, "dock_sn", "Dock serial", "mdi:dock-bottom", "dock_sn"),
+        RomoDeviceInfoSensor(coordinator, sn, "device_ip", "Device IP", "mdi:ip-network", "device_ip"),
     ])
 
 
@@ -271,6 +275,24 @@ class RomoHmsAlertsSensor(RomoSensor):
     def extra_state_attributes(self) -> dict:
         alerts = self.coordinator.data.hms_alerts
         return {"alerts": alerts} if alerts else {}
+
+
+class RomoDeviceInfoSensor(RomoEntity, SensorEntity):
+    """Sensor showing a value from coordinator.device_info (set once at startup)."""
+
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, coordinator, sn, key: str, name: str, icon: str, info_key: str):
+        super().__init__(coordinator, sn)
+        self._attr_unique_id = f"{sn}_{key}"
+        self._attr_name = name
+        self._attr_icon = icon
+        self._info_key = info_key
+
+    @property
+    def native_value(self) -> str | None:
+        info = self.coordinator.device_info
+        return info.get(self._info_key) if info else None
 
 
 class RomoDockSensor(RomoEntity, SensorEntity):

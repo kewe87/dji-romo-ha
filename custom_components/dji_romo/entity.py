@@ -17,11 +17,13 @@ class RomoEntity(Entity):
     def __init__(self, coordinator: RomoStateCoordinator, device_sn: str) -> None:
         self.coordinator = coordinator
         self._device_sn = device_sn
+        info = coordinator.device_info or {}
         self._attr_device_info = {
             "identifiers": {(DOMAIN, device_sn)},
-            "name": f"DJI Romo {device_sn}",
+            "name": info.get("name", f"DJI Romo {device_sn}"),
             "manufacturer": "DJI",
             "model": "Romo",
+            "sw_version": info.get("firmware_version"),
         }
 
     @property
